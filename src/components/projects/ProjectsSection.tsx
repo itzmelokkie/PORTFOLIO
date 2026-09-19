@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import ProjectShowcase from '@/components/ui/ProjectShowcase'
 import { NYXORAPreview } from './NYXORASection'
 import { SalonERPPreview } from './SalonERPSection'
@@ -9,6 +9,7 @@ import { HandwritingPreview } from './HandwritingDocGeneratorSection'
 import { OdinPreview } from './OdinSection'
 
 interface ProjectItem {
+  id: string
   number: string
   title: string
   subtitle: string
@@ -25,6 +26,7 @@ interface ProjectItem {
 
 const projects: ProjectItem[] = [
   {
+    id: 'nyxora-section',
     number: '01',
     title: 'NYXORA',
     subtitle: 'AI MESSENGER',
@@ -40,6 +42,7 @@ const projects: ProjectItem[] = [
     preview: <NYXORAPreview />,
   },
   {
+    id: 'salon-erp-section',
     number: '02',
     title: 'SALON ERP',
     subtitle: 'ENTERPRISE MANAGEMENT',
@@ -55,6 +58,7 @@ const projects: ProjectItem[] = [
     preview: <SalonERPPreview />,
   },
   {
+    id: 'ai-doc-section',
     number: '03',
     title: 'AI-DOC',
     subtitle: 'INTELLIGENT VAULT',
@@ -70,6 +74,7 @@ const projects: ProjectItem[] = [
     preview: <AIDocPreview />,
   },
   {
+    id: 'handwriting-doc-section',
     number: '04',
     title: 'HANDWRITING',
     subtitle: 'CANVAS GENERATOR',
@@ -85,6 +90,7 @@ const projects: ProjectItem[] = [
     preview: <HandwritingPreview />,
   },
   {
+    id: 'odin-section',
     number: '05',
     title: 'ODIN',
     subtitle: 'VOICE INTELLIGENCE',
@@ -101,370 +107,192 @@ const projects: ProjectItem[] = [
   },
 ]
 
-interface TransitionState {
-  fromIndex: number
-  toIndex: number
-  direction: 'down' | 'up'
-  stage: 'prepare' | 'animating'
-}
+function ProjectRow({
+  project,
+  index,
+  totalProjects,
+  onSelectProject,
+}: {
+  project: ProjectItem
+  index: number
+  totalProjects: number
+  onSelectProject: (idx: number) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const glowRef = useRef<HTMLDivElement>(null)
 
-export default function ProjectsSection() {
-  // Explicitly initialize project index to 0 (01 / 05 NYXORA)
-  const [activeProject, setActiveProject] = useState(0)
-  const activeProjectRef = useRef(0)
-  const isLockedRef = useRef(false)
-  const sectionRef = useRef<HTMLElement>(null)
-  const touchStartYRef = useRef(0)
-
-  // Cinematic Transition State
-  const [transition, setTransition] = useState<TransitionState | null>(null)
-
-  // Keep ref synchronized with state for event listeners
   useEffect(() => {
-    activeProjectRef.current = activeProject
-  }, [activeProject])
+    const container = containerRef.current
+    const content = contentRef.current
+    const glow = glowRef.current
+    if (!container || !content) return
 
-  // Trigger cinematic project transition (600–900ms duration with cubic-bezier)
-  const triggerTransition = useCallback((targetIndex: number, direction: 'down' | 'up') => {
-    if (isLockedRef.current) return
-    if (targetIndex === activeProjectRef.current) return
-    if (targetIndex < 0 || targetIndex >= projects.length) return
+    let rafId: number | null = null
 
-    isLockedRef.current = true
-    const from = activeProjectRef.current
+    const updateScrollAnimation = () => {
+      if (!container || !content) return
+      const rect = container.getBoundingClientRect()
+      const windowHeight = window.innerHeight
 
-    // Phase 1: mount incoming layer with starting transform
-    setTransition({
-      fromIndex: from,
-      toIndex: targetIndex,
-      direction,
-      stage: 'prepare',
-    })
+      // If within viewport + buffer
+      if (rect.bottom > -150 && rect.top < windowHeight + 150) {
+        // Center of the project section
+        const elemCenter = rect.top + rect.height / 2
+        const viewportCenter = windowHeight / 2
+        const distFromCenter = elemCenter - viewportCenter
+        const maxDist = (windowHeight + rect.height) / 2
 
-    // Phase 2: trigger smooth GPU transition in the next animation frames
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setTransition((prev) => (prev ? { ...prev, stage: 'animating' } : null))
+        // normalized position: -1.2 to 1.2 (0 when perfectly centered)
+        const normalized = Math.max(-1.2, Math.min(1.2, distFromCenter / maxDist))
+        const absDist = Math.abs(normalized)
+
+        // Factor: 1 when centered, smoothly dropping as it moves toward top or bottom
+        const factor = Math.max(0, Math.min(1, 1 - absDist * 1.05))
+        // Smoothstep curve for velvety cinematic easing
+        const ease = factor * factor * (3 - 2 * factor)
+
+        // Continuous scroll-based values:
+        const opacity = 0.35 + 0.65 * ease
+        const translateY = normalized > 0 ? (1 - ease) * 45 : -(1 - ease) * 30
+        const scale = 0.97 + 0.03 * ease
+        const blur = (1 - ease) * 5
+
+        content.style.opacity = `${opacity}`
+        content.style.transform = `translate3d(0, ${translateY.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`
+        content.style.filter = blur > 0.2 ? `blur(${blur.toFixed(1)}px)` : 'none'
+
+        // Preview card subtle parallax
+        const cardParallax = normalized * -20
+        const card = content.querySelector('.glass-panel-hover') as HTMLElement
+        if (card) {
+          card.style.transform = `translate3d(0, ${cardParallax.toFixed(2)}px, 0)`
+        }
+
+        // Atmospheric background glow movement
+        if (glow) {
+          const glowY = normalized * -35
+          glow.style.transform = `translate(-50%, -50%) translateY(${glowY.toFixed(1)}px) scale(${(1 + ease * 0.08).toFixed(3)})`
+          glow.style.opacity = `${(0.5 + 0.5 * ease).toFixed(2)}`
+        }
+      }
+    }
+
+    const onScroll = () => {
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        updateScrollAnimation()
+        rafId = null
       })
-    })
-
-    // Phase 3: complete transition after 750ms and unlock navigation with a slight buffer for trackpad inertia
-    setTimeout(() => {
-      setActiveProject(targetIndex)
-      activeProjectRef.current = targetIndex
-      setTransition(null)
-      setTimeout(() => {
-        isLockedRef.current = false
-      }, 100)
-    }, 750)
-  }, [])
-
-  const advanceProject = useCallback(() => {
-    if (activeProjectRef.current < projects.length - 1) {
-      triggerTransition(activeProjectRef.current + 1, 'down')
-    }
-  }, [triggerTransition])
-
-  const retreatProject = useCallback(() => {
-    if (activeProjectRef.current > 0) {
-      triggerTransition(activeProjectRef.current - 1, 'up')
-    }
-  }, [triggerTransition])
-
-  const handleNext = useCallback(() => {
-    const next = (activeProjectRef.current + 1) % projects.length
-    triggerTransition(next, 'down')
-  }, [triggerTransition])
-
-  const handlePrev = useCallback(() => {
-    const prev = (activeProjectRef.current - 1 + projects.length) % projects.length
-    triggerTransition(prev, 'up')
-  }, [triggerTransition])
-
-  const handleSelectIndex = useCallback(
-    (index: number) => {
-      if (index >= 0 && index < projects.length && index !== activeProjectRef.current) {
-        triggerTransition(index, index > activeProjectRef.current ? 'down' : 'up')
-      }
-    },
-    [triggerTransition]
-  )
-
-  // Listen for hash navigation from Navbar (e.g. #nyxora-section)
-  useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash
-      let target = -1
-      if (hash === '#nyxora-section' || hash === '#projects') target = 0
-      else if (hash === '#salon-erp-section') target = 1
-      else if (hash === '#ai-doc-section') target = 2
-      else if (hash === '#handwriting-doc-section') target = 3
-      else if (hash === '#odin-section') target = 4
-
-      if (target >= 0 && target !== activeProjectRef.current) {
-        triggerTransition(target, target > activeProjectRef.current ? 'down' : 'up')
-      }
     }
 
-    handleHash()
-    window.addEventListener('hashchange', handleHash)
-    return () => window.removeEventListener('hashchange', handleHash)
-  }, [triggerTransition])
-
-  // Helper to test if ProjectsSection dominates the viewport
-  const isSectionInFocus = useCallback(() => {
-    if (!sectionRef.current) return false
-    const rect = sectionRef.current.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
-    return rect.top <= 140 && rect.bottom >= viewportHeight - 140
-  }, [])
-
-  // Wheel gesture throttling: one intentional scroll = one project transition
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (!isSectionInFocus()) return
-
-      const delta = e.deltaY
-      const current = activeProjectRef.current
-
-      // Scrolling DOWN
-      if (delta > 14) {
-        if (current < projects.length - 1) {
-          e.preventDefault()
-          if (!isLockedRef.current) {
-            advanceProject()
-          }
-        }
-        // If current === 4 (last project), do not prevent default: allow smooth exit to #skills
-      }
-      // Scrolling UP
-      else if (delta < -14) {
-        if (current > 0) {
-          e.preventDefault()
-          if (!isLockedRef.current) {
-            retreatProject()
-          }
-        }
-        // If current === 0 (first project), do not prevent default: allow smooth exit to #about
-      }
-    }
-
-    window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => window.removeEventListener('wheel', handleWheel)
-  }, [isSectionInFocus, advanceProject, retreatProject])
-
-  // Keyboard navigation (ArrowDown, ArrowUp, PageDown, PageUp)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isSectionInFocus()) return
-
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown') {
-        if (activeProjectRef.current < projects.length - 1) {
-          e.preventDefault()
-          if (!isLockedRef.current) {
-            advanceProject()
-          }
-        }
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        if (activeProjectRef.current > 0) {
-          e.preventDefault()
-          if (!isLockedRef.current) {
-            retreatProject()
-          }
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isSectionInFocus, advanceProject, retreatProject])
-
-  // Mobile scroll-driven progression: smoothly progresses through projects 01 -> 05 on vertical scroll
-  useEffect(() => {
-    let ticking = false
-
-    const handleScroll = () => {
-      if (ticking) return
-      ticking = true
-
-      requestAnimationFrame(() => {
-        ticking = false
-
-        // Mobile/tablet screens only (< 768px). Desktop uses wheel handler exclusively.
-        if (typeof window === 'undefined' || window.innerWidth >= 768) return
-        const element = sectionRef.current
-        if (!element) return
-
-        const rect = element.getBoundingClientRect()
-        const viewportHeight = window.innerHeight
-        const topPinOffset = 56 // top-14 sticky offset
-
-        const totalScrollable = rect.height - viewportHeight
-        if (totalScrollable <= 0) return
-
-        const scrolledPastPin = topPinOffset - rect.top
-        const progress = Math.max(0, Math.min(1, scrolledPastPin / totalScrollable))
-
-        const current = activeProjectRef.current
-        let target = current
-
-        // Smooth progression thresholds with hysteresis buffer for natural thumb scrolling
-        if (progress >= 0.82) {
-          target = 4
-        } else if (progress >= 0.62) {
-          target = current === 4 && progress > 0.78 ? 4 : 3
-        } else if (progress >= 0.42) {
-          target = current >= 3 && progress > 0.58 ? current : 2
-        } else if (progress >= 0.22) {
-          target = current >= 2 && progress > 0.38 ? current : 1
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          window.addEventListener('scroll', onScroll, { passive: true })
+          window.addEventListener('resize', onScroll, { passive: true })
+          updateScrollAnimation()
         } else {
-          target = current >= 1 && progress > 0.18 ? current : 0
+          window.removeEventListener('scroll', onScroll)
+          window.removeEventListener('resize', onScroll)
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId)
+            rafId = null
+          }
         }
+      },
+      { rootMargin: '200px 0px' }
+    )
 
-        if (target !== current && !isLockedRef.current) {
-          triggerTransition(target, target > current ? 'down' : 'up')
-        }
-      })
+    observer.observe(container)
+    updateScrollAnimation()
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
+  }, [])
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [triggerTransition])
-
-  const current = projects[activeProject]
-  const easing = 'cubic-bezier(0.22, 1, 0.36, 1)'
+  const nextIdx = index < totalProjects - 1 ? index + 1 : undefined
 
   return (
-    <section
-      ref={sectionRef}
-      id="projects"
-      className="relative h-[340vh] md:h-auto md:min-h-screen w-full flex flex-col items-center justify-start md:justify-center px-4 sm:px-6 md:px-12 lg:px-20 py-8 sm:py-12 md:py-28 overflow-visible md:overflow-hidden"
-      aria-label="Projects Showcase"
+    <div
+      ref={containerRef}
+      id={project.id}
+      data-project-index={index}
+      className="relative min-h-screen w-full flex flex-col items-center justify-center px-4 sm:px-6 md:px-12 lg:px-20 py-16 sm:py-20 md:py-28 overflow-visible scroll-mt-16 sm:scroll-mt-20"
     >
-      {/* Anchor targets for Navbar links */}
-      <div id="nyxora-section" className="absolute -top-24 pointer-events-none" />
-      <div id="salon-erp-section" className="absolute -top-24 pointer-events-none" />
-      <div id="ai-doc-section" className="absolute -top-24 pointer-events-none" />
-      <div id="handwriting-doc-section" className="absolute -top-24 pointer-events-none" />
-      <div id="odin-section" className="absolute -top-24 pointer-events-none" />
-
-      {/* Subtle atmospheric glow synchronized with active project */}
+      {/* Subtle atmospheric glow synchronized with this project */}
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] rounded-full pointer-events-none transition-all duration-1000 ease-out"
+        ref={glowRef}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] sm:w-[800px] h-[450px] sm:h-[550px] rounded-full pointer-events-none transition-opacity duration-300 transform-gpu will-change-transform"
         style={{
           background:
             'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.02) 50%, transparent 70%)',
-          transform: `translate(-50%, -50%) translateY(${activeProject * 12 - 24}px) scale(${
-            1 + (activeProject % 2) * 0.04
-          })`,
           filter: 'blur(90px)',
+          opacity: 0.5,
         }}
         aria-hidden="true"
       />
 
-      {/* Main Project Scene Composition — Sticky on mobile, relative on desktop */}
-      <div className="sticky top-14 sm:top-16 md:relative md:top-auto z-10 max-w-7xl w-full min-h-[calc(100vh-4.5rem)] md:min-h-0 flex flex-col justify-center">
-        {/* State 1: Idle (Single project displayed normally) */}
-        {!transition && (
-          <div className="w-full transition-opacity duration-300 ease-out">
-            <ProjectShowcase
-              number={current.number}
-              title={current.title}
-              subtitle={current.subtitle}
-              categoryBadge={current.categoryBadge}
-              description={current.description}
-              techStack={current.techStack}
-              status={current.status}
-              previewContent={current.preview}
-              parallax={0}
-              visible={true}
-              index={0}
-              onNext={handleNext}
-              onPrev={handlePrev}
-              onSelectIndex={handleSelectIndex}
-            />
-          </div>
-        )}
-
-        {/* State 2: Cinematic Transition (Both Outgoing & Incoming rendered simultaneously) */}
-        {transition && (
-          <div className="relative w-full overflow-hidden">
-            {/* Outgoing Project Composition (Fades out, slightly moves, subtle blur & scale 1 -> 0.98) */}
-            <div
-              className="w-full pointer-events-none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                opacity: transition.stage === 'animating' ? 0 : 1,
-                transform:
-                  transition.stage === 'animating'
-                    ? transition.direction === 'down'
-                      ? 'translate3d(0, -36px, 0) scale(0.98)'
-                      : 'translate3d(0, 36px, 0) scale(0.98)'
-                    : 'translate3d(0, 0, 0) scale(1)',
-                filter: transition.stage === 'animating' ? 'blur(6px)' : 'blur(0px)',
-                transition: `opacity 750ms ${easing}, transform 750ms ${easing}, filter 750ms ${easing}`,
-                willChange: 'transform, opacity, filter',
-                zIndex: 1,
-              }}
-            >
-              <ProjectShowcase
-                number={projects[transition.fromIndex].number}
-                title={projects[transition.fromIndex].title}
-                subtitle={projects[transition.fromIndex].subtitle}
-                categoryBadge={projects[transition.fromIndex].categoryBadge}
-                description={projects[transition.fromIndex].description}
-                techStack={projects[transition.fromIndex].techStack}
-                status={projects[transition.fromIndex].status}
-                previewContent={projects[transition.fromIndex].preview}
-                parallax={0}
-                visible={true}
-                index={0}
-                onNext={handleNext}
-                onPrev={handlePrev}
-                onSelectIndex={handleSelectIndex}
-              />
-            </div>
-
-            {/* Incoming Project Composition (Starts slightly offset, opacity 0, blur 6px, scale 0.98 -> glides into position) */}
-            <div
-              className="w-full"
-              style={{
-                opacity: transition.stage === 'animating' ? 1 : 0,
-                transform:
-                  transition.stage === 'animating'
-                    ? 'translate3d(0, 0, 0) scale(1)'
-                    : transition.direction === 'down'
-                      ? 'translate3d(0, 36px, 0) scale(0.98)'
-                      : 'translate3d(0, -36px, 0) scale(0.98)',
-                filter: transition.stage === 'animating' ? 'blur(0px)' : 'blur(6px)',
-                transition: `opacity 750ms ${easing}, transform 750ms ${easing}, filter 750ms ${easing}`,
-                willChange: 'transform, opacity, filter',
-                zIndex: 2,
-              }}
-            >
-              <ProjectShowcase
-                number={projects[transition.toIndex].number}
-                title={projects[transition.toIndex].title}
-                subtitle={projects[transition.toIndex].subtitle}
-                categoryBadge={projects[transition.toIndex].categoryBadge}
-                description={projects[transition.toIndex].description}
-                techStack={projects[transition.toIndex].techStack}
-                status={projects[transition.toIndex].status}
-                previewContent={projects[transition.toIndex].preview}
-                parallax={0}
-                visible={true}
-                index={0}
-                onNext={handleNext}
-                onPrev={handlePrev}
-                onSelectIndex={handleSelectIndex}
-              />
-            </div>
-          </div>
-        )}
+      {/* Main Project Content with Continuous Scroll Transform */}
+      <div
+        ref={contentRef}
+        className="relative z-10 max-w-7xl w-full transform-gpu will-change-[transform,opacity,filter]"
+        style={{
+          opacity: 1,
+          transform: 'translate3d(0, 0px, 0) scale(1)',
+          filter: 'none',
+        }}
+      >
+        <ProjectShowcase
+          number={project.number}
+          title={project.title}
+          subtitle={project.subtitle}
+          categoryBadge={project.categoryBadge}
+          description={project.description}
+          techStack={project.techStack}
+          status={project.status}
+          previewContent={project.preview}
+          parallax={0}
+          visible={true}
+          index={index}
+          onNext={nextIdx !== undefined ? () => onSelectProject(nextIdx) : undefined}
+          onSelectIndex={onSelectProject}
+        />
       </div>
+    </div>
+  )
+}
+
+export default function ProjectsSection() {
+  const handleSelectProject = useCallback((index: number) => {
+    if (index >= 0 && index < projects.length) {
+      const targetId = projects[index].id
+      const element = document.getElementById(targetId)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [])
+
+  return (
+    <section
+      id="projects"
+      className="relative w-full flex flex-col items-center justify-start overflow-visible"
+      aria-label="Projects Showcase"
+    >
+      {projects.map((project, index) => (
+        <ProjectRow
+          key={project.id}
+          project={project}
+          index={index}
+          totalProjects={projects.length}
+          onSelectProject={handleSelectProject}
+        />
+      ))}
     </section>
   )
 }

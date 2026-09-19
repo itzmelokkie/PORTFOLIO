@@ -1,20 +1,36 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import MainContent from '@/components/layout/MainContent'
-import SmokyText from '@/components/ui/SmokyText'
+
+const WORD_1 = [
+  { char: 'J', rotate: -4, y: -2, delay: 0 },
+  { char: 'U', rotate: 3, y: 3, delay: 50 },
+  { char: 'S', rotate: -2.5, y: -1.5, delay: 100 },
+  { char: 'T', rotate: 3.5, y: 2, delay: 150 },
+]
+
+const WORD_2 = [
+  { char: 'K', rotate: 3, y: -3, delay: 220 },
+  { char: 'I', rotate: -3.5, y: 2, delay: 270 },
+  { char: 'D', rotate: 2.5, y: -1, delay: 320 },
+  { char: 'D', rotate: -3, y: 3, delay: 370 },
+  { char: 'I', rotate: 3.5, y: -2, delay: 420 },
+  { char: 'N', rotate: -2.5, y: 1.5, delay: 470 },
+  { char: 'G', rotate: 4.5, y: -2.5, delay: 520 },
+]
 
 export default function LoadingScreen() {
-  const [phase, setPhase] = useState<'counter' | 'kidding' | 'scroll' | 'transition' | 'complete'>('counter')
+  const [phase, setPhase] = useState<'counter' | 'kidding' | 'transition' | 'complete'>('counter')
   const counterSpanRef = useRef<HTMLSpanElement>(null)
   const loadingRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
-  // Counter animation: direct DOM update to avoid 300+ full-tree React re-renders
+  // Counter animation: counts to 71% then triggers 'kidding'
   useEffect(() => {
     if (phase !== 'counter') return
 
-    const duration = 3200
+    const duration = 2400
     const startTime = performance.now()
     let animId: number
     let timeoutId: NodeJS.Timeout
@@ -35,7 +51,7 @@ export default function LoadingScreen() {
         if (counterSpanRef.current) {
           counterSpanRef.current.textContent = '71'
         }
-        timeoutId = setTimeout(() => setPhase('kidding'), 450)
+        timeoutId = setTimeout(() => setPhase('kidding'), 350)
       }
     }
 
@@ -67,55 +83,47 @@ export default function LoadingScreen() {
     }
   }, [phase])
 
-  // Playful developer phase: display for 1700ms before showing scroll cue
+  const triggerTransition = useCallback(() => {
+    window.scrollTo(0, 0)
+    setPhase('transition')
+  }, [])
+
+  // Kidding phase: interactive (any scroll, click, key triggers entrance) or short auto-advance
   useEffect(() => {
     if (phase !== 'kidding') return
 
-    const timer = setTimeout(() => {
-      setPhase('scroll')
-    }, 1700)
-
-    return () => clearTimeout(timer)
-  }, [phase])
-
-  // Scroll phase: intercept first scroll gesture without allowing page to jump
-  useEffect(() => {
-    if (phase !== 'scroll') return
-
-    const triggerTransition = (e?: Event) => {
-      if (e && e.cancelable) {
-        e.preventDefault()
-      }
-      window.scrollTo(0, 0)
-      setPhase('transition')
-    }
+    // Auto-advance after 2200ms so the user sees the joke, then enters smoothly
+    const autoTimer = setTimeout(() => {
+      triggerTransition()
+    }, 2200)
 
     const handleWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) > 6 || Math.abs(e.deltaX) > 6) {
-        triggerTransition(e)
+      if (Math.abs(e.deltaY) > 5 || Math.abs(e.deltaX) > 5) {
+        triggerTransition()
       }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) {
-        triggerTransition(e)
+      if (['ArrowDown', 'PageDown', ' ', 'Enter', 'Escape'].includes(e.key)) {
+        triggerTransition()
       }
     }
 
-    const handleTouch = (e: TouchEvent) => {
-      triggerTransition(e)
+    const handlePointerDown = () => {
+      triggerTransition()
     }
 
-    window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('wheel', handleWheel, { passive: true })
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('touchstart', handleTouch, { passive: true })
+    window.addEventListener('pointerdown', handlePointerDown)
 
     return () => {
+      clearTimeout(autoTimer)
       window.removeEventListener('wheel', handleWheel)
       window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('touchstart', handleTouch)
+      window.removeEventListener('pointerdown', handlePointerDown)
     }
-  }, [phase])
+  }, [phase, triggerTransition])
 
   // Transition phase: smooth GPU-accelerated exit
   useEffect(() => {
@@ -125,7 +133,7 @@ export default function LoadingScreen() {
     const timer = setTimeout(() => {
       window.scrollTo(0, 0)
       setPhase('complete')
-    }, 1000)
+    }, 850)
 
     return () => clearTimeout(timer)
   }, [phase])
@@ -137,18 +145,82 @@ export default function LoadingScreen() {
   const isTransitioning = phase === 'transition'
 
   return (
-    <div className="relative min-h-screen w-full">
+    <div className="relative min-h-screen w-full bg-[#050509]">
+      <style jsx>{`
+        @keyframes elasticBounceIn {
+          0% {
+            opacity: 0;
+            transform: translateY(48px) scale(0.6) rotate(calc(var(--rot) * 2.5));
+          }
+          45% {
+            opacity: 1;
+            transform: translateY(-12px) scale(1.16, 0.86) rotate(var(--rot));
+          }
+          65% {
+            transform: translateY(4px) scale(0.95, 1.05) rotate(var(--rot));
+          }
+          82% {
+            transform: translateY(-2px) scale(1.02, 0.98) rotate(var(--rot));
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(var(--y)) scale(1, 1) rotate(var(--rot));
+          }
+        }
+
+        @keyframes playfulChuckle {
+          0%, 100% {
+            transform: translateY(var(--y)) scale(1, 1) rotate(var(--rot));
+          }
+          25% {
+            transform: translateY(calc(var(--y) - 3.5px)) scale(1.03, 0.97) rotate(calc(var(--rot) + 1.2deg));
+          }
+          50% {
+            transform: translateY(var(--y)) scale(1, 1) rotate(var(--rot));
+          }
+          75% {
+            transform: translateY(calc(var(--y) + 2px)) scale(0.98, 1.02) rotate(calc(var(--rot) - 0.8deg));
+          }
+        }
+
+        .playful-letter {
+          display: inline-block;
+          opacity: 0;
+          animation:
+            elasticBounceIn 650ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+            playfulChuckle 2200ms ease-in-out infinite 700ms;
+          will-change: transform, opacity;
+        }
+      `}</style>
+
+      {/* Atmospheric Violet Glow Background */}
+      <div
+        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] md:w-[900px] h-[500px] md:h-[650px] rounded-full pointer-events-none transition-all duration-1000 ease-out"
+        style={{
+          background:
+            phase === 'kidding'
+              ? 'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.22) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 75%)'
+              : 'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.02) 50%, transparent 70%)',
+          filter: 'blur(100px)',
+          transform: phase === 'kidding' ? 'translate(-50%, -50%) scale(1.15)' : 'translate(-50%, -50%) scale(1)',
+        }}
+        aria-hidden="true"
+      />
+
       <div
         ref={loadingRef}
+        onClick={phase === 'kidding' ? triggerTransition : undefined}
         className={`
-          fixed inset-0 z-20 flex items-center justify-center pointer-events-none transform-gpu
-          transition-all duration-1000 ease-out
-          ${isTransitioning ? 'opacity-0 -translate-y-8 scale-[0.98]' : 'opacity-100 translate-y-0 scale-100'}
+          fixed inset-0 z-20 flex items-center justify-center transform-gpu
+          transition-all duration-850 ease-out
+          ${isTransitioning ? 'opacity-0 -translate-y-8 scale-[0.98] pointer-events-none' : 'opacity-100 translate-y-0 scale-100'}
+          ${phase === 'kidding' ? 'cursor-pointer select-none' : 'pointer-events-none'}
         `}
-        aria-hidden={phase !== 'counter' && phase !== 'kidding' && phase !== 'scroll'}
+        aria-hidden={phase !== 'counter' && phase !== 'kidding'}
       >
-        <div className="relative z-10 flex flex-col items-center justify-center gap-6 md:gap-8 text-center px-6">
+        <div className="relative z-10 flex flex-col items-center justify-center text-center px-4 sm:px-6 w-full max-w-6xl">
 
+          {/* PHASE 1: Counter counting to 71% */}
           {phase === 'counter' && (
             <div className="flex flex-col items-center gap-3 md:gap-4">
               <span className="technical-label">INITIALIZING</span>
@@ -159,30 +231,41 @@ export default function LoadingScreen() {
             </div>
           )}
 
+          {/* PHASE 2: HUGE "JUST KIDDING" */}
           {phase === 'kidding' && (
-            <div className="flex flex-col items-center max-w-xl mx-auto transition-opacity duration-500 opacity-100 pointer-events-auto px-4 text-center">
-              <p className="font-display text-xl sm:text-2xl md:text-3xl font-medium text-primary-text tracking-tight leading-relaxed">
-                <SmokyText radius={240}>
-                  &ldquo;Currently turning caffeine, curiosity, and questionable debugging decisions into software.&rdquo;
-                </SmokyText>
-              </p>
-            </div>
-          )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 md:gap-8 lg:gap-10">
+              {/* WORD 1: JUST */}
+              <div className="flex items-center">
+                {WORD_1.map((item, i) => (
+                  <span
+                    key={`w1-${i}`}
+                    className="playful-letter font-display font-black text-5xl xs:text-6xl sm:text-7xl md:text-8xl lg:text-[8.5rem] xl:text-[9.5rem] leading-none text-primary-text tracking-tight drop-shadow-[0_0_35px_rgba(139,92,246,0.5)]"
+                    style={{
+                      '--rot': `${item.rotate}deg`,
+                      '--y': `${item.y}px`,
+                      animationDelay: `${item.delay}ms, ${item.delay + 650}ms`,
+                    } as React.CSSProperties}
+                  >
+                    {item.char}
+                  </span>
+                ))}
+              </div>
 
-          {phase === 'scroll' && (
-            <div
-              onClick={() => {
-                window.scrollTo(0, 0)
-                setPhase('transition')
-              }}
-              className="flex flex-col items-center gap-3 md:gap-4 transition-opacity duration-500 opacity-100 cursor-pointer pointer-events-auto select-none"
-            >
-              <span className="technical-label">READY</span>
-              <p className="font-display text-lg md:text-xl font-medium text-secondary-text/60 tracking-tight hover:text-primary-text transition-colors">
-                SCROLL FOR MORE <span className="text-primary-purple">↓</span>
-              </p>
-              <div className="w-px h-12 md:h-16 bg-primary-purple/20 relative overflow-hidden mt-3 md:mt-4">
-                <div className="absolute left-0 top-0 w-full h-1/3 bg-primary-purple animate-pulse" />
+              {/* WORD 2: KIDDING */}
+              <div className="flex items-center">
+                {WORD_2.map((item, i) => (
+                  <span
+                    key={`w2-${i}`}
+                    className="playful-letter font-display font-black text-5xl xs:text-6xl sm:text-7xl md:text-8xl lg:text-[8.5rem] xl:text-[9.5rem] leading-none text-primary-text tracking-tight drop-shadow-[0_0_35px_rgba(139,92,246,0.5)]"
+                    style={{
+                      '--rot': `${item.rotate}deg`,
+                      '--y': `${item.y}px`,
+                      animationDelay: `${item.delay}ms, ${item.delay + 650}ms`,
+                    } as React.CSSProperties}
+                  >
+                    {item.char}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -191,7 +274,7 @@ export default function LoadingScreen() {
 
       <div
         ref={contentRef}
-        className={`relative z-10 transition-opacity duration-1000 ease-out ${isTransitioning ? 'opacity-100' : 'opacity-0'}`}
+        className={`relative z-10 transition-opacity duration-850 ease-out ${isTransitioning ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden={!isTransitioning}
       >
         <MainContent />
