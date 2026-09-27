@@ -2,47 +2,52 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Environment } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 import dynamic from 'next/dynamic'
-import CursorGlowCard from '@/components/ui/CursorGlowCard'
 import SmokyText from '@/components/ui/SmokyText'
 
-const ProcessorModel = dynamic(
-  () => import('./ProcessorChip').then((mod) => mod.ProcessorModel),
+const RetroComputerModel = dynamic(
+  () => import('./RetroComputerModel').then((mod) => mod.RetroComputerModel),
   { ssr: false, loading: () => null }
 )
+
+function ModelLoadingFallback() {
+  return (
+    <group position={[0, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.5, 0.55, 32]} />
+        <meshBasicMaterial color="#8b78c8" transparent opacity={0.25} wireframe />
+      </mesh>
+    </group>
+  )
+}
 
 export default function ContactSection() {
   const [visible, setVisible] = useState(false)
   const [isInView, setIsInView] = useState(false)
+  const [hasMountedCanvas, setHasMountedCanvas] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     const element = sectionRef.current
     if (!element) return
 
+    // Intersection observer for section entrance and 3D Canvas rendering
+    // Strictly scoped: only renders when the contact section is actually in the viewport
     const observer = new IntersectionObserver(
       ([entry]) => {
+        setIsInView(entry.isIntersecting)
         if (entry.isIntersecting) {
           setVisible(true)
+          setHasMountedCanvas(true)
         }
       },
-      { threshold: 0.1, rootMargin: '0px 0px -100px 0px' }
+      { threshold: 0.05, rootMargin: '300px 0px' }
     )
     observer.observe(element)
 
-    // Viewport tracking for 3D Canvas: pause WebGL render loop when far offscreen
-    const canvasObserver = new IntersectionObserver(
-      ([entry]) => {
-        setIsInView(entry.isIntersecting)
-      },
-      { rootMargin: '200px 0px' }
-    )
-    canvasObserver.observe(element)
-
     return () => {
       observer.disconnect()
-      canvasObserver.disconnect()
     }
   }, [])
 
@@ -50,92 +55,85 @@ export default function ContactSection() {
     <section
       ref={sectionRef}
       id="contact"
-      className="relative min-h-screen w-full flex items-center justify-center px-4 sm:px-6 md:px-12 lg:px-20 py-16 md:py-24 overflow-hidden"
+      className="relative min-h-screen w-full flex items-center justify-center px-4 sm:px-6 md:px-12 lg:px-20 py-16 md:py-24 overflow-hidden z-10"
       aria-labelledby="contact-heading"
     >
-      {/* 3D WebGL Canvas Layer with Viewport-Aware Frameloop & Optimized Shadows */}
-      <div className="relative z-10 w-full h-full flex items-center justify-center">
-        <div className="absolute inset-0 w-full h-full">
-          <Canvas
-            className="w-full h-full"
-            camera={{ position: [0, 0, 6.5], fov: 28 }}
-            shadows={true}
-            frameloop={isInView ? 'always' : 'never'}
-            gl={{
-              preserveDrawingBuffer: false,
-              alpha: true,
-              antialias: true,
-              powerPreference: 'high-performance'
-            }}
-          >
-            <color attach="background" args={["#060608"]} />
-            <fog attach="fog" args={["#060608", 3, 20]} />
+      <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-12 relative z-10">
 
-            <Environment
-              preset="warehouse"
-              background={false}
-            />
+        {/* LEFT COLUMN (~55% on desktop): Large, Prominent 3D Retro Computer */}
+        <div
+          className={`
+            w-full lg:w-[55%] h-[340px] sm:h-[420px] md:h-[480px] lg:h-[580px] xl:h-[620px] relative flex items-center justify-center transition-all duration-1200 ease-out
+            ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 lg:translate-y-0 lg:-translate-x-10'}
+          `}
+        >
+          {hasMountedCanvas && (
+            <Canvas
+              className="w-full h-full relative z-10 cursor-grab active:cursor-grabbing select-none"
+              camera={{ position: [0, 0, 4.6], fov: 30 }}
+              shadows={false}
+              dpr={[1, 1.5]}
+              frameloop={isInView ? 'always' : 'never'}
+              style={{ background: 'transparent' }}
+              gl={{
+                preserveDrawingBuffer: false,
+                alpha: true,
+                antialias: true,
+                powerPreference: 'high-performance'
+              }}
+              onCreated={({ gl, scene }) => {
+                gl.setClearColor(0x000000, 0)
+                scene.background = null
+              }}
+            >
+              <ambientLight intensity={0.8} color="#ffffff" />
+              {/* Primary key light */}
+              <directionalLight
+                position={[3, 4, 4]}
+                intensity={2.2}
+                color="#ffffff"
+              />
+              {/* Violet accent rim light matching portfolio theme */}
+              <directionalLight
+                position={[-4, 3, -2]}
+                intensity={2.5}
+                color="#c084fc"
+              />
+              {/* Subtle fill light */}
+              <pointLight
+                position={[-2, -1, 3]}
+                intensity={0.8}
+                color="#93c5fd"
+                distance={10}
+                decay={2}
+              />
 
-            <ambientLight intensity={0.4} color="#ffffff" />
-            <directionalLight
-              position={[4, 5, 6]}
-              intensity={2}
-              color="#ffffff"
-              castShadow
-              shadow-mapSize-width={1024}
-              shadow-mapSize-height={1024}
-              shadow-camera-near={0.1}
-              shadow-camera-far={25}
-              shadow-camera-left={-6}
-              shadow-camera-right={6}
-              shadow-camera-top={6}
-              shadow-camera-bottom={-6}
-              shadow-bias={-0.0005}
-            />
-            <directionalLight
-              position={[-3, 3, 4]}
-              intensity={1}
-              color="#c4b8f2"
-            />
-            <pointLight
-              position={[0, 0, 4]}
-              intensity={1.2}
-              color="#8b78c8"
-              distance={15}
-              decay={2}
-            />
-            <pointLight
-              position={[2, -2, 3]}
-              intensity={0.6}
-              color="#ffffff"
-              distance={10}
-              decay={2}
-            />
-            <hemisphereLight groundColor="#0a0a0f" color="#15151c" intensity={0.3} />
+              <Suspense fallback={<ModelLoadingFallback />}>
+                <RetroComputerModel />
+              </Suspense>
 
-            <Suspense fallback={null}>
-              <ProcessorModel />
-            </Suspense>
-
-            <OrbitControls
-              enablePan={false}
-              enableZoom={false}
-              enableRotate={true}
-              autoRotate={false}
-              minPolarAngle={Math.PI / 4}
-              maxPolarAngle={Math.PI / 1.6}
-            />
-          </Canvas>
+              <OrbitControls
+                enableRotate={true}
+                enableZoom={false}
+                enablePan={false}
+                enableDamping={true}
+                dampingFactor={0.06}
+                rotateSpeed={0.8}
+                minPolarAngle={Math.PI / 4}
+                maxPolarAngle={Math.PI / 1.7}
+                makeDefault
+              />
+            </Canvas>
+          )}
         </div>
-      </div>
 
-      <div
-        className={`
-          relative z-20 w-full h-full flex items-center justify-center lg:justify-end px-4 sm:px-6 md:px-12 lg:px-20 transition-all duration-1600 ease-out
-          ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-16'}
-        `}
-      >
-        <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto pr-0 lg:pr-12 xl:pr-20">
+        {/* RIGHT COLUMN (~45% on desktop): Contact Details & Social Links */}
+        <div
+          className={`
+            w-full lg:w-[45%] max-w-md mx-auto lg:mx-0 flex flex-col justify-center transition-all duration-1200 ease-out
+            ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 lg:translate-y-0 lg:translate-x-10'}
+          `}
+        >
           <div className="mb-4 sm:mb-6 md:mb-10">
             <span className="text-xs font-mono tracking-[0.3em] uppercase text-purple-300/60 font-medium">FINAL CHAPTER</span>
           </div>
@@ -225,8 +223,8 @@ export default function ContactSection() {
             </a>
           </div>
         </div>
-      </div>
 
+      </div>
     </section>
   )
 }

@@ -12,7 +12,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'home', label: 'HOME', href: '#home' },
   { id: 'about', label: 'ABOUT', href: '#about' },
-  { id: 'projects', label: 'PROJECTS', href: '#nyxora-section' },
+  { id: 'projects', label: 'PROJECTS', href: '#projects' },
   { id: 'skills', label: 'SKILLS', href: '#skills' },
   { id: 'contact', label: 'CONTACT', href: '#contact' },
 ]
@@ -23,7 +23,10 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const isScrolledRef = useRef(false)
 
-  const scrollToSection = useCallback((href: string) => {
+  const scrollToSection = useCallback((href: string, id?: string) => {
+    if (id) {
+      setActiveSection(id)
+    }
     if (href === '#home') {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } else {
@@ -37,18 +40,49 @@ export default function Navbar() {
 
   // Section observer for accurate navigation tracking
   useEffect(() => {
-    const sectionIds = ['home', 'about', 'projects', 'nyxora-section', 'skills', 'contact']
+    const sectionIds = ['home', 'about', 'projects', 'skills', 'contact']
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const id = entry.target.id
-            setActiveSection(id === 'nyxora-section' || id === 'projects' ? 'projects' : id)
+    const calculateActiveSection = () => {
+      const scrollY = window.scrollY
+      const windowHeight = window.innerHeight
+      const fullHeight = document.documentElement.scrollHeight
+
+      // 1. Bottom of page: when near bottom, Contact is definitively the active section
+      if (scrollY + windowHeight >= fullHeight - 80) {
+        setActiveSection('contact')
+        return
+      }
+
+      // 2. Top of page: when near top, Home is definitively active
+      if (scrollY < 80) {
+        setActiveSection('home')
+        return
+      }
+
+      // 3. Focal line at 40% of viewport height (natural reading eye level)
+      const focalY = scrollY + windowHeight * 0.4
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const id = sectionIds[i]
+        const el = document.getElementById(id)
+        if (el) {
+          const top = el.offsetTop
+          const bottom = top + el.offsetHeight
+          if (focalY >= top && focalY < bottom) {
+            setActiveSection(id)
+            return
           }
         }
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      () => {
+        calculateActiveSection()
       },
-      { rootMargin: '-20% 0px -55% 0px', threshold: [0, 0.2] }
+      {
+        rootMargin: '-20% 0px -20% 0px',
+        threshold: [0, 0.25, 0.5, 0.75, 1.0]
+      }
     )
 
     sectionIds.forEach((id) => {
@@ -56,7 +90,7 @@ export default function Navbar() {
       if (el) observer.observe(el)
     })
 
-    // Lightweight scroll listener for subtle glass softness without a hard rectangular box
+    // Lightweight scroll listener for glass header and bottom/top bounds check
     let rafId: number | null = null
     const handleScroll = () => {
       if (rafId !== null) return
@@ -66,15 +100,19 @@ export default function Navbar() {
           isScrolledRef.current = scrolled
           setIsScrolled(scrolled)
         }
+        calculateActiveSection()
         rafId = null
       })
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll, { passive: true })
+    calculateActiveSection()
 
     return () => {
       observer.disconnect()
       window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
@@ -113,7 +151,7 @@ export default function Navbar() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => scrollToSection(item.href)}
+                  onClick={() => scrollToSection(item.href, item.id)}
                   className={`
                     relative py-1 text-xs md:text-[13px] font-sans tracking-[0.18em] uppercase transition-colors duration-300 font-medium
                     ${isActive ? 'text-primary-text' : 'text-secondary-text hover:text-primary-text'}
@@ -167,7 +205,7 @@ export default function Navbar() {
             {navItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => scrollToSection(item.href)}
+                onClick={() => scrollToSection(item.href, item.id)}
                 className={`
                   text-left py-2.5 px-3 rounded-lg tracking-[0.2em] text-sm uppercase transition-colors duration-200 font-mono
                   ${activeSection === item.id ? 'text-primary-purple bg-primary-purple/10 font-semibold' : 'text-secondary-text hover:text-primary-text hover:bg-white/5'}
