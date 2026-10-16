@@ -1,5 +1,5 @@
-import LoadingScreen from '@/components/loading/LoadingScreen'
+import SignalCorruptionIntro from '@/components/intro/SignalCorruptionIntro'
 
 export default function HomePage() {
-  return <LoadingScreen />
+  return <SignalCorruptionIntro />
 }

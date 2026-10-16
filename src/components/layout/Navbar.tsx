@@ -38,50 +38,33 @@ export default function Navbar() {
     setIsMobileMenuOpen(false)
   }, [])
 
-  // Section observer for accurate navigation tracking
+  // High-performance IntersectionObserver for accurate navigation tracking (Zero forced reflows)
+  const activeSectionRef = useRef('home')
+
   useEffect(() => {
     const sectionIds = ['home', 'about', 'projects', 'skills', 'contact']
 
-    const calculateActiveSection = () => {
-      const scrollY = window.scrollY
-      const windowHeight = window.innerHeight
-      const fullHeight = document.documentElement.scrollHeight
-
-      // 1. Bottom of page: when near bottom, Contact is definitively the active section
-      if (scrollY + windowHeight >= fullHeight - 80) {
-        setActiveSection('contact')
-        return
-      }
-
-      // 2. Top of page: when near top, Home is definitively active
-      if (scrollY < 80) {
-        setActiveSection('home')
-        return
-      }
-
-      // 3. Focal line at 40% of viewport height (natural reading eye level)
-      const focalY = scrollY + windowHeight * 0.4
-      for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const id = sectionIds[i]
-        const el = document.getElementById(id)
-        if (el) {
-          const top = el.offsetTop
-          const bottom = top + el.offsetHeight
-          if (focalY >= top && focalY < bottom) {
-            setActiveSection(id)
-            return
-          }
-        }
-      }
-    }
-
     const observer = new IntersectionObserver(
-      () => {
-        calculateActiveSection()
+      (entries) => {
+        // Track the most visible section in the reading area
+        let bestId: string | null = null
+        let maxRatio = 0
+
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio
+            bestId = entry.target.id
+          }
+        })
+
+        if (bestId && bestId !== activeSectionRef.current) {
+          activeSectionRef.current = bestId
+          setActiveSection(bestId)
+        }
       },
       {
-        rootMargin: '-20% 0px -20% 0px',
-        threshold: [0, 0.25, 0.5, 0.75, 1.0]
+        rootMargin: '-15% 0px -35% 0px',
+        threshold: [0.15, 0.35, 0.65],
       }
     )
 
@@ -90,24 +73,27 @@ export default function Navbar() {
       if (el) observer.observe(el)
     })
 
-    // Lightweight scroll listener for glass header and bottom/top bounds check
+    // Lightweight scroll listener for glass header and top bound check (no layout reading)
     let rafId: number | null = null
     const handleScroll = () => {
       if (rafId !== null) return
       rafId = requestAnimationFrame(() => {
-        const scrolled = window.scrollY > 40
+        const scrollY = window.scrollY
+        const scrolled = scrollY > 40
         if (scrolled !== isScrolledRef.current) {
           isScrolledRef.current = scrolled
           setIsScrolled(scrolled)
         }
-        calculateActiveSection()
+        if (scrollY < 60 && activeSectionRef.current !== 'home') {
+          activeSectionRef.current = 'home'
+          setActiveSection('home')
+        }
         rafId = null
       })
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('resize', handleScroll, { passive: true })
-    calculateActiveSection()
 
     return () => {
       observer.disconnect()

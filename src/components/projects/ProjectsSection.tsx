@@ -129,19 +129,32 @@ function ProjectRow({
     if (!container || !content) return
 
     let rafId: number | null = null
+    let containerTop = 0
+    let containerHeight = 0
+    let hoverCard: HTMLElement | null = null
+
+    const measure = () => {
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      containerTop = rect.top + window.scrollY
+      containerHeight = rect.height
+      if (!hoverCard && content) {
+        hoverCard = content.querySelector('.glass-panel-hover') as HTMLElement
+      }
+    }
 
     const updateScrollAnimation = () => {
       if (!container || !content) return
-      const rect = container.getBoundingClientRect()
       const windowHeight = window.innerHeight
+      const elemTop = containerTop - window.scrollY
+      const elemBottom = elemTop + containerHeight
 
       // If within viewport + buffer
-      if (rect.bottom > -150 && rect.top < windowHeight + 150) {
-        // Center of the project section
-        const elemCenter = rect.top + rect.height / 2
+      if (elemBottom > -150 && elemTop < windowHeight + 150) {
+        const elemCenter = elemTop + containerHeight / 2
         const viewportCenter = windowHeight / 2
         const distFromCenter = elemCenter - viewportCenter
-        const maxDist = (windowHeight + rect.height) / 2
+        const maxDist = (windowHeight + containerHeight) / 2
 
         // normalized position: -1.2 to 1.2 (0 when perfectly centered)
         const normalized = Math.max(-1.2, Math.min(1.2, distFromCenter / maxDist))
@@ -156,17 +169,13 @@ function ProjectRow({
         const opacity = 0.35 + 0.65 * ease
         const translateY = normalized > 0 ? (1 - ease) * 45 : -(1 - ease) * 30
         const scale = 0.97 + 0.03 * ease
-        const blur = (1 - ease) * 5
-
         content.style.opacity = `${opacity}`
         content.style.transform = `translate3d(0, ${translateY.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`
-        content.style.filter = blur > 0.2 ? `blur(${blur.toFixed(1)}px)` : 'none'
 
         // Preview card subtle parallax
-        const cardParallax = normalized * -20
-        const card = content.querySelector('.glass-panel-hover') as HTMLElement
-        if (card) {
-          card.style.transform = `translate3d(0, ${cardParallax.toFixed(2)}px, 0)`
+        if (hoverCard) {
+          const cardParallax = normalized * -20
+          hoverCard.style.transform = `translate3d(0, ${cardParallax.toFixed(2)}px, 0)`
         }
 
         // Atmospheric background glow movement
@@ -186,15 +195,21 @@ function ProjectRow({
       })
     }
 
+    const onResize = () => {
+      measure()
+      onScroll()
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          measure()
           window.addEventListener('scroll', onScroll, { passive: true })
-          window.addEventListener('resize', onScroll, { passive: true })
+          window.addEventListener('resize', onResize, { passive: true })
           updateScrollAnimation()
         } else {
           window.removeEventListener('scroll', onScroll)
-          window.removeEventListener('resize', onScroll)
+          window.removeEventListener('resize', onResize)
           if (rafId !== null) {
             cancelAnimationFrame(rafId)
             rafId = null
@@ -204,13 +219,14 @@ function ProjectRow({
       { rootMargin: '200px 0px' }
     )
 
+    measure()
     observer.observe(container)
     updateScrollAnimation()
 
     return () => {
       observer.disconnect()
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      window.removeEventListener('resize', onResize)
       if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
@@ -227,11 +243,10 @@ function ProjectRow({
       {/* Subtle atmospheric glow synchronized with this project */}
       <div
         ref={glowRef}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] sm:w-[800px] h-[450px] sm:h-[550px] rounded-full pointer-events-none transition-opacity duration-300 transform-gpu will-change-transform"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] sm:w-[800px] h-[450px] sm:h-[550px] rounded-full pointer-events-none transition-opacity duration-300 transform-gpu"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.02) 50%, transparent 70%)',
-          filter: 'blur(90px)',
+            'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 35%, rgba(139, 92, 246, 0.015) 55%, transparent 70%)',
           opacity: 0.5,
         }}
         aria-hidden="true"
@@ -240,7 +255,7 @@ function ProjectRow({
       {/* Main Project Content with Continuous Scroll Transform */}
       <div
         ref={contentRef}
-        className="relative z-10 max-w-7xl w-full transform-gpu will-change-[transform,opacity,filter]"
+        className="relative z-10 max-w-7xl w-full transform-gpu will-change-[transform,opacity]"
         style={{
           opacity: 1,
           transform: 'translate3d(0, 0px, 0) scale(1)',

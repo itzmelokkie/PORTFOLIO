@@ -63,7 +63,7 @@ export default function ContactSection() {
         {/* LEFT COLUMN (~55% on desktop): Large, Prominent 3D Retro Computer */}
         <div
           className={`
-            w-full lg:w-[55%] h-[340px] sm:h-[420px] md:h-[480px] lg:h-[580px] xl:h-[620px] relative flex items-center justify-center transition-all duration-1200 ease-out
+            w-full lg:w-[55%] h-[280px] xs:h-[340px] sm:h-[420px] md:h-[480px] lg:h-[580px] xl:h-[620px] relative flex items-center justify-center transition-all duration-1200 ease-out
             ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 lg:translate-y-0 lg:-translate-x-10'}
           `}
         >
@@ -74,7 +74,7 @@ export default function ContactSection() {
               shadows={false}
               dpr={[1, 1.5]}
               frameloop={isInView ? 'always' : 'never'}
-              style={{ background: 'transparent' }}
+              style={{ background: 'transparent', touchAction: 'pan-y' }}
               gl={{
                 preserveDrawingBuffer: false,
                 alpha: true,

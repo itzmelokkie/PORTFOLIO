@@ -113,6 +113,10 @@ export default function CursorGlowCard({
   }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) {
+      return
+    }
+
     if (!rectRef.current) {
       if (cardRef.current) rectRef.current = cardRef.current.getBoundingClientRect()
       else return
@@ -154,12 +158,13 @@ export default function CursorGlowCard({
     <div
       ref={cardRef}
       id={id}
-      className={`relative overflow-hidden tilt-card transform-gpu will-change-transform ${className}`}
+      className={`relative overflow-hidden tilt-card transform-gpu ${className}`}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{
         ...style,
+        willChange: isHovering && enableTilt ? 'transform' : 'auto',
         transform: enableTilt
           ? 'perspective(1200px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))'
           : undefined,
@@ -174,8 +179,7 @@ export default function CursorGlowCard({
           left: `calc(var(--cx, 50%) - ${glowRadius / 2}px)`,
           width: `${glowRadius}px`,
           height: `${glowRadius}px`,
-          background: `radial-gradient(circle at center, ${color}${hexAlpha} 0%, ${color}${hexAlphaLow} 35%, transparent 70%)`,
-          filter: 'blur(70px)',
+          background: `radial-gradient(circle at center, ${color}${hexAlpha} 0%, ${color}${hexAlphaLow} 30%, ${color}08 55%, transparent 75%)`,
           opacity: isHovering ? 1 : 0,
           zIndex: 0,
         }}

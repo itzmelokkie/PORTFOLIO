@@ -312,6 +312,7 @@ const PROGRAMMING_LANGUAGES: ProgrammingLanguage[] = [
 
 function SkillsSection() {
   const [visible, setVisible] = useState(false)
+  const [isInView, setIsInView] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -320,12 +321,12 @@ function SkillsSection() {
 
     const observer = new IntersectionObserver(
       ([entry]) => {
+        setIsInView(entry.isIntersecting)
         if (entry.isIntersecting) {
           setVisible(true)
-          observer.disconnect()
         }
       },
-      { threshold: 0.08, rootMargin: '0px 0px -60px 0px' }
+      { threshold: 0.05, rootMargin: '100px 0px' }
     )
 
     observer.observe(element)
@@ -365,6 +366,7 @@ function SkillsSection() {
           align-items: center;
           width: max-content;
           animation: marqueeLeft 34s linear infinite;
+          animation-play-state: ${isInView ? 'running' : 'paused'};
           will-change: transform;
         }
 
@@ -375,6 +377,7 @@ function SkillsSection() {
           align-items: center;
           width: max-content;
           animation: marqueeRight 38s linear infinite;
+          animation-play-state: ${isInView ? 'running' : 'paused'};
           will-change: transform;
         }
 
@@ -396,8 +399,7 @@ function SkillsSection() {
         className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] sm:w-[900px] h-[450px] sm:h-[600px] rounded-full pointer-events-none transition-opacity duration-1000"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.13) 0%, rgba(139, 92, 246, 0.03) 50%, transparent 70%)',
-          filter: 'blur(100px)',
+            'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.07) 35%, rgba(139, 92, 246, 0.02) 60%, transparent 75%)',
           opacity: visible ? 1 : 0.4,
         }}
         aria-hidden="true"
@@ -541,7 +543,13 @@ function SkillsSection() {
         <div className="w-full relative py-4 sm:py-6 flex flex-col gap-3 sm:gap-4">
           {/* Ambient Glow */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
-            <div className="w-[600px] sm:w-[900px] h-[140px] rounded-full bg-primary-purple/10 blur-[85px]" />
+            <div
+              className="w-[600px] sm:w-[900px] h-[140px] rounded-full pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 40%, rgba(139, 92, 246, 0.015) 60%, transparent 75%)',
+              }}
+            />
           </div>
 
           {/* Marquee Wrapper with Smooth Left & Right Edge Gradient Fades */}

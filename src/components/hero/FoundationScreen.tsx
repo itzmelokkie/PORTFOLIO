@@ -1,17 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import SmokyText from '@/components/ui/SmokyText'
 
 export default function FoundationScreen() {
   const [scrolled, setScrolled] = useState(false)
+  const scrolledRef = useRef(false)
 
   useEffect(() => {
     let rafId: number | null = null
     const handleScroll = () => {
       if (rafId !== null) return
       rafId = requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 80)
+        const isPastThreshold = window.scrollY > 80
+        if (isPastThreshold !== scrolledRef.current) {
+          scrolledRef.current = isPastThreshold
+          setScrolled(isPastThreshold)
+        }
         rafId = null
       })
     }
@@ -35,7 +40,7 @@ export default function FoundationScreen() {
             </div>
 
             {/* Massive Bold Typography with Smoky Violet Cursor Interaction — Scales dynamically on mobile */}
-            <h1 className="font-display text-[2.5rem] xs:text-[3.2rem] sm:text-6xl md:text-8xl lg:text-9xl xl:text-[10.5rem] font-black text-primary-text mb-6 md:mb-8 tracking-[-0.04em] leading-[0.95] uppercase">
+            <h1 className="font-display text-[2.2rem] xs:text-[2.8rem] sm:text-6xl md:text-8xl lg:text-9xl xl:text-[10.5rem] font-black text-primary-text mb-6 md:mb-8 tracking-[-0.04em] leading-[0.95] uppercase">
               <SmokyText radius={340}>
                 LOGESH<br />ELAVARASAN
               </SmokyText>

@@ -51,8 +51,9 @@ export function RetroComputerModel() {
   const scale = useMemo(() => {
     if (isDesktop) return 1.25
     if (isTablet) return 1.05
+    if (size.width < 360) return 0.75
     return 0.85
-  }, [isDesktop, isTablet])
+  }, [isDesktop, isTablet, size.width])
 
   // Base rotation: rotated so the front CRT screen and keyboard face the viewer,
   // angled slightly towards the right (~25 degrees) towards the contact text

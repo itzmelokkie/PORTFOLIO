@@ -55,14 +55,14 @@ export default function SmokyText({
 
   const spawnParticle = useCallback((x: number, y: number, initialOpacity = 0.95, sizeMultiplier = 1) => {
     const sim = simRef.current
-    if (sim.particles.length >= 48) {
+    if (sim.particles.length >= 22) {
       // Prune oldest particle if capacity reached
       sim.particles.shift()
     }
 
-    // Asymmetric, organic elliptical wisp dimensions (approx 1.5x–1.8x larger cloud coverage)
+    // Asymmetric, organic elliptical wisp dimensions with soft cloud coverage
     const aspect = 0.7 + Math.random() * 0.6
-    const baseR = (26 + Math.random() * 20) * scale * sizeMultiplier
+    const baseR = (32 + Math.random() * 22) * scale * sizeMultiplier
     const rx = Math.round(baseR * aspect)
     const ry = Math.round(baseR / aspect)
 
@@ -71,14 +71,14 @@ export default function SmokyText({
       y,
       rx,
       ry,
-      growth: (0.36 + Math.random() * 0.38) * scale,
+      growth: (0.42 + Math.random() * 0.4) * scale,
       vx: (Math.random() - 0.5) * 0.24 * scale,
-      vy: (-0.14 - Math.random() * 0.2) * scale, // gentle atmospheric upward drift
+      vy: (-0.16 - Math.random() * 0.22) * scale, // gentle atmospheric upward drift
       wobbleSpeed: 1.8 + Math.random() * 2.2,
       wobbleAmp: (0.35 + Math.random() * 0.35) * scale,
       phase: Math.random() * Math.PI * 2,
       opacity: initialOpacity,
-      decay: 0.0048 + Math.random() * 0.0028, // extended lifetime ~2.0s to 2.8s for natural dispersion
+      decay: 0.0072 + Math.random() * 0.0035, // smooth, optimized dispersion
     })
   }, [scale])
 
@@ -193,6 +193,7 @@ export default function SmokyText({
   }, [spawnParticle, startLoop])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return
     const el = containerRef.current
     const sim = simRef.current
     if (!el || !sim.isHovering) return

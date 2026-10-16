@@ -132,8 +132,8 @@ export default function ProjectShowcase({
             <h2
               className={`font-display font-black text-primary-text leading-none uppercase ${
                 title === 'HANDWRITING'
-                  ? 'text-[1.75rem] xs:text-3xl sm:text-5xl md:text-6xl lg:text-[3.5rem] xl:text-[4.2rem] 2xl:text-[4.65rem] tracking-tight whitespace-nowrap'
-                  : 'text-4xl xs:text-5xl md:text-7xl lg:text-8xl tracking-[-0.03em]'
+                  ? 'text-[1.65rem] xs:text-2xl sm:text-5xl md:text-6xl lg:text-[3.5rem] xl:text-[4.2rem] 2xl:text-[4.65rem] tracking-tight break-words'
+                  : 'text-3xl xs:text-4xl sm:text-5xl md:text-7xl lg:text-8xl tracking-[-0.03em] break-words'
               }`}
             >
               <SmokyText radius={title === 'HANDWRITING' ? 210 : 260}>
